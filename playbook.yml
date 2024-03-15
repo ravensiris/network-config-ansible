@@ -1,0 +1,27 @@
+---
+- name: Setup HAP ax^3
+  hosts: routers
+  gather_facts: false
+  module_defaults:
+    group/community.routeros.api:
+      hostname: "{{ ansible_host }}"
+      username: "{{ username }}"
+      password: "{{ password }}"
+
+
+  tasks:
+    - name: "Ensure ports on right spot"
+      community.routeros.api_modify:
+        path: interface list member
+        handle_absent_entries: remove
+        handle_entries_content: remove_as_much_as_possible
+        ensure_order: true
+        data:
+          - interface: bridge
+            list: LAN
+          - interface: ether1
+            list: WAN
+          - interface: ether2
+            list: LAN
+
+
