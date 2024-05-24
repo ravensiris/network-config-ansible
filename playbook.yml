@@ -10,7 +10,36 @@
 
 
   tasks:
-    - name: "Ensure ports on right spot"
+    - name: Vlans
+      community.routeros.api_modify:
+        path: interface vlan
+        handle_absent_entries: remove
+        handle_entries_content: remove_as_much_as_possible
+        data:
+          - name: vlan-home
+            vlan-id: 100
+            interface: bridge
+          - name: vlan-work
+            vlan-id: 200
+            interface: bridge
+          - name: vlan-iot
+            vlan-id: 300
+            interface: bridge
+
+    - name: Ensure interface lists
+      community.routeros.api_modify:
+        path: interface list
+        handle_absent_entries: remove
+        handle_entries_content: remove_as_much_as_possible
+        ensure_order: true
+        data:
+          - name: WAN
+            comment: defconf
+          - name: LAN
+            comment: defconf
+          - name: VLAN
+
+    - name: Interface list members
       community.routeros.api_modify:
         path: interface list member
         handle_absent_entries: remove
@@ -23,5 +52,471 @@
             list: WAN
           - interface: ether2
             list: LAN
+          - interface: vlan-home
+            list: VLAN
+          - interface: vlan-work
+            list: VLAN
+          - interface: vlan-iot
+            list: VLAN
+
+    ##
+
+    - name: Check if wireless security profile wifi1-security exists
+      register: wifi2_security_facts
+      community.routeros.api:
+        path: interface wifi security
+        extended_query:
+          attributes:
+            - name
+          where:
+            - attribute: name
+              value: wifi2-security
+              is: "=="
+
+    - name: Add security profile wifi2-security
+      when: (wifi2_security_facts["msg"] | length) == 0
+      community.routeros.api:
+        path: interface wifi security
+        add: name=wifi2-security
 
 
+    - name: Setup wireless security
+      community.routeros.api_find_and_modify:
+        path: interface wifi security
+        find:
+          name: wifi2-security
+        values:
+          passphrase: "{{ wifi2_passphrase }}"
+          wps: disable
+          authentication-types: wpa2-psk
+        require_matches_max: 1
+        require_matches_min: 1
+
+    - name: Check if wireless datapath profile wifi2-datapath exists
+      register: wifi2_datapath_facts
+      community.routeros.api:
+        path: interface wifi datapath
+        extended_query:
+          attributes:
+            - name
+          where:
+            - attribute: name
+              value: wifi2-datapath
+              is: "=="
+
+    - name: Add datapath profile wifi2-datapath
+      when: (wifi2_datapath_facts["msg"] | length) == 0
+      community.routeros.api:
+        path: interface wifi datapath
+        add: name=wifi2-datapath
+
+    - name: Setup wireless datapath profile wifi2-datapath
+      community.routeros.api_find_and_modify:
+        path: interface wifi datapath
+        find:
+          name: wifi2-datapath
+        values:
+          bridge: bridge
+          vlan-id: 300
+        require_matches_min: 1
+        require_matches_max: 1
+
+    - name: Check if wireless configuration profile wifi2-config exists
+      register: wifi2_config_facts
+      community.routeros.api:
+        path: interface wifi configuration
+        extended_query:
+          attributes:
+            - name
+          where:
+            - attribute: name
+              value: wifi2-config
+              is: "=="
+
+    - name: Add config profile wifi2-config
+      when: (wifi2_config_facts["msg"] | length) == 0
+      community.routeros.api:
+        path: interface wifi configuration
+        add: name=wifi2-config
+
+    - name: Setup wireless config profile wifi2-config
+      community.routeros.api_find_and_modify:
+        path: interface wifi configuration
+        find:
+          name: wifi2-config
+        values:
+          country: "{{ country }}"
+          ssid: "{{ wifi2_ssid }}"
+          mode: ap
+          security: wifi2-security
+          datapath: wifi2-datapath
+
+        require_matches_min: 1
+        require_matches_max: 1
+      
+    - name: Setup wireless
+      community.routeros.api_find_and_modify:
+        path: interface wifi
+        find:
+          name: wifi2
+        values:
+          configuration: wifi2-config
+          disabled: false
+        require_matches_min: 1
+        require_matches_max: 1
+
+    ##
+
+
+    - name: Check if wireless security profile wifi1-security exists
+      register: wifi1_security_facts
+      community.routeros.api:
+        path: interface wifi security
+        extended_query:
+          attributes:
+            - name
+          where:
+            - attribute: name
+              value: wifi1-security
+              is: "=="
+
+    - name: Add security profile wifi1-security
+      when: (wifi1_security_facts["msg"] | length) == 0
+      community.routeros.api:
+        path: interface wifi security
+        add: name=wifi1-security
+
+
+    - name: Setup wireless security
+      community.routeros.api_find_and_modify:
+        path: interface wifi security
+        find:
+          name: wifi1-security
+        values:
+          passphrase: "{{ wifi1_passphrase }}"
+          wps: disable
+          authentication-types: wpa3-psk
+        require_matches_max: 1
+        require_matches_min: 1
+
+    - name: Check if wireless datapath profile wifi1-datapath exists
+      register: wifi1_datapath_facts
+      community.routeros.api:
+        path: interface wifi datapath
+        extended_query:
+          attributes:
+            - name
+          where:
+            - attribute: name
+              value: wifi1-datapath
+              is: "=="
+
+    - name: Add datapath profile wifi1-datapath
+      when: (wifi1_datapath_facts["msg"] | length) == 0
+      community.routeros.api:
+        path: interface wifi datapath
+        add: name=wifi1-datapath
+
+    - name: Setup wireless datapath profile wifi1-datapath
+      community.routeros.api_find_and_modify:
+        path: interface wifi datapath
+        find:
+          name: wifi1-datapath
+        values:
+          bridge: bridge
+          vlan-id: 100
+        require_matches_min: 1
+        require_matches_max: 1
+
+    - name: Check if wireless configuration profile wifi1-config exists
+      register: wifi1_config_facts
+      community.routeros.api:
+        path: interface wifi configuration
+        extended_query:
+          attributes:
+            - name
+          where:
+            - attribute: name
+              value: wifi1-config
+              is: "=="
+
+    - name: Add config profile wifi1-config
+      when: (wifi1_config_facts["msg"] | length) == 0
+      community.routeros.api:
+        path: interface wifi configuration
+        add: name=wifi1-config
+
+    - name: Setup wireless config profile wifi1-config
+      community.routeros.api_find_and_modify:
+        path: interface wifi configuration
+        find:
+          name: wifi1-config
+        values:
+          country: "{{ country }}"
+          ssid: "{{ wifi1_ssid }}"
+          mode: ap
+          security: wifi1-security
+          datapath: wifi1-datapath
+
+        require_matches_min: 1
+        require_matches_max: 1
+      
+    - name: Setup wireless
+      community.routeros.api_find_and_modify:
+        path: interface wifi
+        find:
+          name: wifi1
+        values:
+          configuration: wifi1-config
+          disabled: false
+        require_matches_min: 1
+        require_matches_max: 1
+
+
+    - name: Check if wireless security profile wifi11-security exists
+      register: wifi11_security_facts
+      community.routeros.api:
+        path: interface wifi security
+        extended_query:
+          attributes:
+            - name
+          where:
+            - attribute: name
+              value: wifi11-security
+              is: "=="
+
+    - name: Add security profile wifi1-security
+      when: (wifi11_security_facts["msg"] | length) == 0
+      community.routeros.api:
+        path: interface wifi security
+        add: name=wifi11-security
+
+
+    - name: Setup wireless security [wifi11]
+      community.routeros.api_find_and_modify:
+        path: interface wifi security
+        find:
+          name: wifi11-security
+        values:
+          passphrase: "{{ wifi11_passphrase }}"
+          wps: disable
+          authentication-types: wpa3-psk
+        require_matches_max: 1
+        require_matches_min: 1
+
+    - name: Check if wireless datapath profile wifi11-datapath exists
+      register: wifi11_datapath_facts
+      community.routeros.api:
+        path: interface wifi datapath
+        extended_query:
+          attributes:
+            - name
+          where:
+            - attribute: name
+              value: wifi11-datapath
+              is: "=="
+
+    - name: Add datapath profile wifi11-datapath
+      when: (wifi11_datapath_facts["msg"] | length) == 0
+      community.routeros.api:
+        path: interface wifi datapath
+        add: name=wifi11-datapath
+
+    - name: Setup wireless datapath profile wifi11-datapath
+      community.routeros.api_find_and_modify:
+        path: interface wifi datapath
+        find:
+          name: wifi11-datapath
+        values:
+          bridge: bridge
+          vlan-id: 200
+        require_matches_min: 1
+        require_matches_max: 1
+
+    - name: Check if wireless configuration profile wifi11-config exists
+      register: wifi11_config_facts
+      community.routeros.api:
+        path: interface wifi configuration
+        extended_query:
+          attributes:
+            - name
+          where:
+            - attribute: name
+              value: wifi11-config
+              is: "=="
+
+    - name: Add config profile wifi11-config
+      when: (wifi11_config_facts["msg"] | length) == 0
+      community.routeros.api:
+        path: interface wifi configuration
+        add: name=wifi11-config
+
+    - name: Setup wireless config profile wifi11-config
+      community.routeros.api_find_and_modify:
+        path: interface wifi configuration
+        find:
+          name: wifi11-config
+        values:
+          country: "{{ country }}"
+          ssid: "{{ wifi11_ssid }}"
+          mode: ap
+          security: wifi11-security
+          datapath: wifi11-datapath
+
+        require_matches_min: 1
+        require_matches_max: 1
+
+    - name: Check if wireless wifi11 exists
+      register: wifi11_facts
+      community.routeros.api:
+        path: interface wifi
+        extended_query:
+          attributes:
+            - name
+          where:
+            - attribute: name
+              value: wifi11
+              is: "=="
+
+    - name: Add wifi11
+      when: (wifi11_facts["msg"] | length) == 0
+      community.routeros.api:
+        path: interface wifi
+        add: name=wifi11 master-interface=wifi1 disabled=yes
+      
+    - name: Setup wireless [wifi11]
+      community.routeros.api_find_and_modify:
+        path: interface wifi
+        find:
+          name: wifi11
+        values:
+          configuration: wifi11-config
+          disabled: false
+        require_matches_min: 1
+        require_matches_max: 1
+
+    - name: Bridge ports
+      community.routeros.api_modify:
+        path: interface bridge port
+        handle_absent_entries: remove
+        handle_entries_content: remove_as_much_as_possible
+        data:
+          - bridge: bridge
+            interface: ether2
+          - bridge: bridge
+            interface: ether3
+          - bridge: bridge
+            interface: wifi1
+
+    - name: Bridge vlans
+      community.routeros.api_modify:
+        path: interface bridge vlan
+        handle_absent_entries: remove
+        handle_entries_content: remove_as_much_as_possible
+        ensure_order: true
+        data:
+          - bridge: bridge
+            vlan-ids: 100
+            tagged: bridge,wifi1
+          - bridge: bridge
+            vlan-ids: 200
+            tagged: bridge,wifi11
+          - bridge: bridge
+            vlan-ids: 300
+            tagged: bridge,wifi2
+
+    - name: IP Addresses
+      community.routeros.api_modify:
+        path: ip address
+        handle_absent_entries: remove
+        handle_entries_content: remove_as_much_as_possible
+        data:
+          - address: 192.168.88.1/24
+            network: 192.168.88.0
+            interface: bridge
+            comment: defconf
+          - address: 192.168.100.1/24
+            network: 192.168.100.0
+            interface: vlan-home
+          - address: 192.168.200.1/24
+            network: 192.168.200.0
+            interface: vlan-work
+          - address: 192.168.30.1/24
+            network: 192.168.30.0
+            interface: vlan-iot
+          - address: 10.0.0.2/8
+            network: 10.0.0.0
+            interface: ether1
+
+    - name: IP Pools
+      community.routeros.api_modify:
+        path: ip pool
+        handle_absent_entries: remove
+        handle_entries_content: remove_as_much_as_possible
+        ensure_order: true
+        data:
+          - ranges: 192.168.88.100-192.168.88.200
+            name: default-dhcp
+          - ranges: 192.168.100.50-192.168.100.254
+            name: home-dhcp
+          - ranges: 192.168.200.50-192.168.200.254
+            name: work-dhcp
+          - ranges: 192.168.30.50-192.168.30.254
+            name: iot-dhcp
+
+    - name: DHCP Servers
+      community.routeros.api_modify:
+        path: ip dhcp-server
+        handle_absent_entries: remove
+        handle_entries_content: remove_as_much_as_possible
+        ensure_order: true
+        data:
+          - name: defconf
+            address-pool: default-dhcp
+            interface: bridge
+            lease-time: 10m
+          - name: home-dhcp-server
+            address-pool: home-dhcp
+            interface: vlan-home
+            lease-time: 10m
+          - name: work-dhcp-server
+            address-pool: work-dhcp
+            interface: vlan-work
+            lease-time: 10m
+          - name: iot-dhcp-server
+            address-pool: iot-dhcp
+            interface: vlan-iot
+            lease-time: 10080m
+
+    - name: DHCP Server Networks
+      community.routeros.api_modify:
+        path: ip dhcp-server network
+        handle_absent_entries: remove
+        handle_entries_content: remove_as_much_as_possible
+        ensure_order: true
+        data:
+          - comment: defconf
+            address: 192.168.88.0/24
+            dns-server: 192.168.88.1
+            gateway: 192.168.88.1
+          - comment: home
+            address: 192.168.100.0/24
+            dns-server: 1.1.1.1
+            gateway: 192.168.100.1
+          - comment: work
+            address: 192.168.200.0/24
+            dns-server: 1.1.1.1
+            gateway: 192.168.200.1
+          - comment: iot
+            address: 192.168.30.0/24
+            dns-server: 1.1.1.1
+            gateway: 192.168.30.1
+
+    - name: IP Routes
+      community.routeros.api_modify:
+        path: ip route
+        handle_absent_entries: remove
+        handle_entries_content: remove_as_much_as_possible
+        ensure_order: true
+        data:
+          - gateway: 10.0.0.1
